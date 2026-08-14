@@ -2,7 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Download, Filter, Calendar, School, CheckCircle2, Clock, AlertCircle, XCircle } from 'lucide-react';
 
 export default function AttendanceReport({ students = [] }) {
-  const getTodayStr = () => new Date().toISOString().split('T')[0];
+  const getTodayStr = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   const [startDate, setStartDate] = useState(getTodayStr());
   const [endDate, setEndDate] = useState(getTodayStr());

@@ -13,22 +13,25 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Helper function to get today's date in YYYY-MM-DD (local time)
+// Helper function to get today's date in YYYY-MM-DD (WIB / Asia/Jakarta)
 const getTodayDate = () => {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
 };
 
-// Helper function to get current time in HH:mm:ss
+// Helper function to get current time in HH:mm:ss (WIB / Asia/Jakarta)
 const getCurrentTime = () => {
-  const d = new Date();
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  const seconds = String(d.getSeconds()).padStart(2, '0');
-  return `${hours}:${minutes}:${seconds}`;
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Jakarta',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).format(new Date());
 };
 
 // ==========================================
