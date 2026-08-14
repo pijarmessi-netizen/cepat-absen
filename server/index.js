@@ -184,10 +184,14 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`=======================================================`);
-  console.log(`  CEPAT ABSEN - SISTEM PRESENSI QR CODE (TK/SD)`);
-  console.log(`=======================================================`);
-  console.log(`  Aplikasi berjalan di: http://localhost:${PORT}`);
-  console.log(`=======================================================`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`=======================================================`);
+    console.log(`  CEPAT ABSEN - SISTEM PRESENSI QR CODE (TK/SD)`);
+    console.log(`=======================================================`);
+    console.log(`  Aplikasi berjalan di: http://localhost:${PORT}`);
+    console.log(`=======================================================`);
+  });
+}
+
+export default app;
