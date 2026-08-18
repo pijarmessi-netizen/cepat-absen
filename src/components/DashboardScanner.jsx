@@ -138,9 +138,16 @@ export default function DashboardScanner({ students = [] }) {
       try {
         const config = {
           fps: 10,
-          qrbox: { width: 220, height: 220 },
+          qrbox: (width, height) => {
+            const size = Math.min(width, height) * 0.75;
+            const finalSize = Math.max(160, Math.min(260, Math.floor(size)));
+            return { width: finalSize, height: finalSize };
+          },
           aspectRatio: 1.0,
-          showTorchButtonIfSupported: true
+          showTorchButtonIfSupported: true,
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
+          }
         };
 
         const scanner = new Html5QrcodeScanner('qr-reader', config, false);
