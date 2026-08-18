@@ -1,9 +1,22 @@
 import React, { useState } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
-import { Printer, X, School, Filter } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
+import { Printer, X, School, Filter, Download } from 'lucide-react';
 
 export default function PrintQRModal({ students = [], onClose }) {
   const [selectedClass, setSelectedClass] = useState('ALL');
+
+  const downloadQR = (studentId, studentName) => {
+    const canvas = document.getElementById(`qr-${studentId}`);
+    if (canvas) {
+      const pngUrl = canvas.toDataURL("image/png");
+      const downloadLink = document.createElement("a");
+      downloadLink.href = pngUrl;
+      downloadLink.download = `QR_${studentName.replace(/\s+/g, '_')}_${studentId}.png`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    }
+  };
 
   // Filter unique classes
   const classList = Array.from(new Set(students.map(s => s.class_name))).sort();
@@ -123,11 +136,13 @@ export default function PrintQRModal({ students = [], onClose }) {
                   boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)',
                   marginBottom: '10px'
                 }}>
-                  <QRCodeSVG
+                  <QRCodeCanvas
+                    id={`qr-${s.student_id}`}
                     value={s.student_id}
-                    size={120}
+                    size={256}
+                    style={{ width: '120px', height: '120px', display: 'block' }}
                     level="H"
-                    includeMargin={false}
+                    includeMargin={true}
                   />
                 </div>
 
@@ -150,6 +165,28 @@ export default function PrintQRModal({ students = [], onClose }) {
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace', fontWeight: 600 }}>
                     NISN: {s.student_id}
                   </div>
+
+                  <button
+                    className="btn btn-outline no-print"
+                    onClick={() => downloadQR(s.student_id, s.fullname)}
+                    style={{
+                      marginTop: '10px',
+                      padding: '6px 12px',
+                      fontSize: '0.75rem',
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-card)'
+                    }}
+                  >
+                    <Download size={13} />
+                    <span>Unduh QR</span>
+                  </button>
                 </div>
 
                 {/* FOOTER TIP */}

@@ -1,9 +1,23 @@
 import React, { useState } from 'react';
-import { Users, Plus, Search, Edit2, Trash2, Printer, Phone, School, QrCode, MessageCircle } from 'lucide-react';
+import { Users, Plus, Search, Edit2, Trash2, Printer, Phone, School, QrCode, MessageCircle, Download } from 'lucide-react';
 import PrintQRModal from './PrintQRModal';
+import { QRCodeCanvas } from 'qrcode.react';
 
 export default function StudentManagement({ students = [], onRefresh }) {
   const [searchTerm, setSearchTerm] = useState('');
+
+  const downloadQRDirect = (studentId, studentName) => {
+    const canvas = document.getElementById(`qr-download-${studentId}`);
+    if (canvas) {
+      const pngUrl = canvas.toDataURL("image/png");
+      const downloadLink = document.createElement("a");
+      downloadLink.href = pngUrl;
+      downloadLink.download = `QR_${studentName.replace(/\s+/g, '_')}_${studentId}.png`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    }
+  };
   const [classFilter, setClassFilter] = useState('ALL');
 
   const [showFormModal, setShowFormModal] = useState(false);
@@ -215,6 +229,14 @@ export default function StudentManagement({ students = [], onRefresh }) {
                       <div style={{ display: 'inline-flex', gap: '6px' }}>
                         <button
                           className="btn btn-outline"
+                          style={{ padding: '5px 8px', color: 'var(--primary)', borderColor: 'var(--sky-light)' }}
+                          onClick={() => downloadQRDirect(s.student_id, s.fullname)}
+                          title="Unduh QR Code"
+                        >
+                          <QrCode size={14} />
+                        </button>
+                        <button
+                          className="btn btn-outline"
                           style={{ padding: '5px 8px' }}
                           onClick={() => handleOpenEditModal(s)}
                           title="Edit"
@@ -280,6 +302,14 @@ export default function StudentManagement({ students = [], onRefresh }) {
                 </div>
 
                 <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                  <button
+                    className="btn btn-outline"
+                    style={{ padding: '6px 8px', color: 'var(--primary)', borderColor: 'var(--sky-light)' }}
+                    onClick={() => downloadQRDirect(s.student_id, s.fullname)}
+                    title="Unduh QR Code"
+                  >
+                    <QrCode size={14} />
+                  </button>
                   <button
                     className="btn btn-outline"
                     style={{ padding: '6px 8px' }}
@@ -421,6 +451,20 @@ export default function StudentManagement({ students = [], onRefresh }) {
           onClose={() => setShowPrintModal(false)}
         />
       )}
+
+      {/* HIDDEN GENERATOR FOR DIRECT QR DOWNLOAD */}
+      <div style={{ display: 'none' }}>
+        {students.map((s) => (
+          <QRCodeCanvas
+            key={s.student_id}
+            id={`qr-download-${s.student_id}`}
+            value={s.student_id}
+            size={256}
+            level="H"
+            includeMargin={true}
+          />
+        ))}
+      </div>
 
     </div>
   );
