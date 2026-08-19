@@ -1,3 +1,4 @@
+// Trigger Vercel rebuild to apply connected KV environment variables
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
