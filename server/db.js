@@ -1,10 +1,15 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import os from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dbFilePath = path.join(__dirname, 'cepat_absen_data.json');
+
+const isVercel = process.env.VERCEL || process.env.NOW_BUILDER;
+const dbFilePath = isVercel 
+  ? path.join(os.tmpdir(), 'cepat_absen_data.json')
+  : path.join(__dirname, 'cepat_absen_data.json');
 
 // Empty initial database state (Clean slate for real-time user input)
 const cleanData = {
@@ -36,7 +41,14 @@ class LocalJSONDatabase {
         const fileContent = fs.readFileSync(dbFilePath, 'utf8');
         this.data = JSON.parse(fileContent);
       } else {
-        this.save();
+        const localPath = path.join(__dirname, 'cepat_absen_data.json');
+        if (isVercel && fs.existsSync(localPath)) {
+          const fileContent = fs.readFileSync(localPath, 'utf8');
+          this.data = JSON.parse(fileContent);
+          this.save();
+        } else {
+          this.save();
+        }
       }
     } catch (e) {
       console.error('Error loading JSON DB:', e);

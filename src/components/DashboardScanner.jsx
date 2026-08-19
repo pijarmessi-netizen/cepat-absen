@@ -105,7 +105,7 @@ export default function DashboardScanner({ students = [] }) {
         fetchTodayData();
       } else {
         // Warning / Error
-        if (data.type === 'ALREADY_ATTENDED') {
+        if (data.type === 'ALREADY_ATTENDED' || data.alreadyScanned) {
           soundFx.playWarning();
           setScanMessage({ type: 'warning', text: data.message });
         } else {
