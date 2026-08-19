@@ -133,12 +133,12 @@ class LocalJSONDatabase {
 
   async getStudentById(student_id) {
     await this.load();
-    return this.data.students.find(s => s.student_id === String(student_id).trim());
+    return this.data.students.find(s => String(s.student_id).trim() === String(student_id).trim());
   }
 
   async addStudent(student) {
     await this.load();
-    const existing = this.data.students.find(s => s.student_id === String(student.student_id).trim());
+    const existing = this.data.students.find(s => String(s.student_id).trim() === String(student.student_id).trim());
     if (existing) {
       throw new Error(`ID/NISN ${student.student_id} sudah terdaftar.`);
     }
@@ -159,7 +159,7 @@ class LocalJSONDatabase {
 
   async updateStudent(student_id, updateData) {
     await this.load();
-    const index = this.data.students.findIndex(s => s.student_id === student_id);
+    const index = this.data.students.findIndex(s => String(s.student_id).trim() === String(student_id).trim());
     if (index === -1) return null;
 
     this.data.students[index] = {
@@ -177,8 +177,8 @@ class LocalJSONDatabase {
   async deleteStudent(student_id) {
     await this.load();
     const initialLen = this.data.students.length;
-    this.data.students = this.data.students.filter(s => s.student_id !== student_id);
-    this.data.attendances = this.data.attendances.filter(a => a.student_id !== student_id);
+    this.data.students = this.data.students.filter(s => String(s.student_id).trim() !== String(student_id).trim());
+    this.data.attendances = this.data.attendances.filter(a => String(a.student_id).trim() !== String(student_id).trim());
 
     const changed = this.data.students.length !== initialLen;
     if (changed) await this.save();
@@ -192,7 +192,7 @@ class LocalJSONDatabase {
     const todayAttendances = this.data.attendances
       .filter(a => a.date === todayDate)
       .map(a => {
-        const s = this.data.students.find(stud => stud.student_id === String(a.student_id).trim()) || {};
+        const s = this.data.students.find(stud => String(stud.student_id).trim() === String(a.student_id).trim()) || {};
         return {
           ...a,
           fullname: s.fullname || 'Murid Tidak Dikenal',
@@ -216,12 +216,12 @@ class LocalJSONDatabase {
   }
 
   _findAttendance(student_id, date) {
-    return this.data.attendances.find(a => a.student_id === student_id && a.date === date);
+    return this.data.attendances.find(a => String(a.student_id).trim() === String(student_id).trim() && a.date === date);
   }
 
   async recordScan(student_id, todayDate, currentTime) {
     await this.load();
-    const student = this.data.students.find(s => s.student_id === String(student_id).trim());
+    const student = this.data.students.find(s => String(s.student_id).trim() === String(student_id).trim());
     if (!student) {
       return { success: false, error: 'NOT_FOUND', message: `Murid dengan ID "${student_id}" tidak terdaftar.` };
     }
@@ -273,7 +273,7 @@ class LocalJSONDatabase {
     if (notes !== undefined) this.data.attendances[index].notes = notes;
 
     await this.save();
-    const student = this.data.students.find(s => s.student_id === String(this.data.attendances[index].student_id).trim()) || {};
+    const student = this.data.students.find(s => String(s.student_id).trim() === String(this.data.attendances[index].student_id).trim()) || {};
     return {
       ...this.data.attendances[index],
       fullname: student.fullname,
@@ -307,7 +307,7 @@ class LocalJSONDatabase {
   async getReport({ start_date, end_date, class_name } = {}) {
     await this.load();
     let list = this.data.attendances.map(a => {
-      const s = this.data.students.find(stud => stud.student_id === String(a.student_id).trim()) || {};
+      const s = this.data.students.find(stud => String(stud.student_id).trim() === String(a.student_id).trim()) || {};
       return {
         ...a,
         fullname: s.fullname || 'Murid Hapus',

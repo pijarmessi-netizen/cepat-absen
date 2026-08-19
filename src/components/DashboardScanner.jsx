@@ -47,6 +47,7 @@ export default function DashboardScanner({ students = [] }) {
 
   // Edit status state
   const [editingAttendance, setEditingAttendance] = useState(null);
+  const [customAlert, setCustomAlert] = useState(null); // { type: 'success' | 'error', message: '...' }
 
   const scannerRef = useRef(null);
   const html5QrcodeScannerRef = useRef(null);
@@ -207,10 +208,10 @@ export default function DashboardScanner({ students = [] }) {
         setManualForm({ student_id: '', status: 'Izin', notes: '' });
         fetchTodayData();
       } else {
-        alert(data.message);
+        setCustomAlert({ type: 'error', message: data.message });
       }
     } catch (err) {
-      alert('Gagal menyimpan presensi manual.');
+      setCustomAlert({ type: 'error', message: 'Gagal menyimpan presensi manual.' });
     }
   };
 
@@ -227,7 +228,7 @@ export default function DashboardScanner({ students = [] }) {
         fetchTodayData();
       }
     } catch (err) {
-      alert('Gagal mengedit status.');
+      setCustomAlert({ type: 'error', message: 'Gagal mengedit status.' });
     }
   };
 
@@ -598,6 +599,36 @@ export default function DashboardScanner({ students = [] }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM ALERT MODAL */}
+      {customAlert && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }}>
+          <div className="card modal-content-mobile" style={{ maxWidth: '360px', width: '100%', textAlign: 'center', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+            <div style={{
+              background: customAlert.type === 'success' ? 'var(--status-hadir-bg)' : 'var(--status-alfa-bg)',
+              color: customAlert.type === 'success' ? 'var(--status-hadir-text)' : 'var(--status-alfa-text)',
+              padding: '12px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              {customAlert.type === 'success' ? <CheckCircle2 size={32} /> : <AlertCircle size={32} />}
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.15rem', marginBottom: '8px', color: 'var(--text-dark)' }}>
+                {customAlert.type === 'success' ? 'Berhasil' : 'Pemberitahuan'}
+              </h3>
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                {customAlert.message}
+              </p>
+            </div>
+            <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setCustomAlert(null)}>
+              Tutup
+            </button>
           </div>
         </div>
       )}

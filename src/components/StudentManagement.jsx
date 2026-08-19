@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Plus, Search, Edit2, Trash2, Printer, Phone, School, QrCode, MessageCircle, Download } from 'lucide-react';
+import { Users, Plus, Search, Edit2, Trash2, Printer, Phone, School, QrCode, MessageCircle, Download, CheckCircle2, AlertCircle } from 'lucide-react';
 import PrintQRModal from './PrintQRModal';
 import { QRCodeCanvas } from 'qrcode.react';
 
@@ -31,6 +31,8 @@ export default function StudentManagement({ students = [], onRefresh }) {
   });
 
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [customAlert, setCustomAlert] = useState(null); // { type: 'success' | 'error', message: '...' }
+  const [customConfirm, setCustomConfirm] = useState(null); // { message: '...', onConfirm: () => {} }
 
   // Extract unique class list
   const classList = Array.from(new Set(students.map(s => s.class_name))).sort();
@@ -88,28 +90,34 @@ export default function StudentManagement({ students = [], onRefresh }) {
       if (data.success) {
         setShowFormModal(false);
         onRefresh();
+        setCustomAlert({ type: 'success', message: editingStudent ? 'Data murid berhasil diperbarui.' : 'Data murid berhasil ditambahkan.' });
       } else {
-        alert(data.message || 'Gagal menyimpan data murid.');
+        setCustomAlert({ type: 'error', message: data.message || 'Gagal menyimpan data murid.' });
       }
     } catch (err) {
-      alert('Terjadi kesalahan koneksi.');
+      setCustomAlert({ type: 'error', message: 'Terjadi kesalahan koneksi.' });
     }
   };
 
-  const handleDelete = async (studentId, fullname) => {
-    if (!window.confirm(`Apakah Anda yakin ingin menghapus data murid "${fullname}"?`)) return;
-
-    try {
-      const res = await fetch(`/api/students/${studentId}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        onRefresh();
-      } else {
-        alert(data.message);
+  const handleDelete = (studentId, fullname) => {
+    setCustomConfirm({
+      message: `Apakah Anda yakin ingin menghapus data murid "${fullname}"?`,
+      onConfirm: async () => {
+        setCustomConfirm(null);
+        try {
+          const res = await fetch(`/api/students/${studentId}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (data.success) {
+            onRefresh();
+            setCustomAlert({ type: 'success', message: 'Data murid berhasil dihapus.' });
+          } else {
+            setCustomAlert({ type: 'error', message: data.message });
+          }
+        } catch (err) {
+          setCustomAlert({ type: 'error', message: 'Gagal menghapus data murid.' });
+        }
       }
-    } catch (err) {
-      alert('Gagal menghapus data murid.');
-    }
+    });
   };
 
   const formatPhoneForWA = (phone) => {
@@ -465,6 +473,69 @@ export default function StudentManagement({ students = [], onRefresh }) {
           />
         ))}
       </div>
+
+      {/* CUSTOM ALERT MODAL */}
+      {customAlert && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }}>
+          <div className="card modal-content-mobile" style={{ maxWidth: '360px', width: '100%', textAlign: 'center', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+            <div style={{
+              background: customAlert.type === 'success' ? 'var(--status-hadir-bg)' : 'var(--status-alfa-bg)',
+              color: customAlert.type === 'success' ? 'var(--status-hadir-text)' : 'var(--status-alfa-text)',
+              padding: '12px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              {customAlert.type === 'success' ? <CheckCircle2 size={32} /> : <AlertCircle size={32} />}
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.15rem', marginBottom: '8px', color: 'var(--text-dark)' }}>
+                {customAlert.type === 'success' ? 'Berhasil' : 'Pemberitahuan'}
+              </h3>
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                {customAlert.message}
+              </p>
+            </div>
+            <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setCustomAlert(null)}>
+              Tutup
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM CONFIRM MODAL */}
+      {customConfirm && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }}>
+          <div className="card modal-content-mobile" style={{ maxWidth: '380px', width: '100%', textAlign: 'center', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+            <div style={{
+              background: 'var(--status-izin-bg)',
+              color: 'var(--status-izin-text)',
+              padding: '12px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <AlertCircle size={32} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.15rem', marginBottom: '8px', color: 'var(--text-dark)' }}>Konfirmasi Tindakan</h3>
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                {customConfirm.message}
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+              <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setCustomConfirm(null)}>
+                Batal
+              </button>
+              <button className="btn btn-primary" style={{ flex: 1, background: 'var(--status-alfa-text)', border: 'none' }} onClick={customConfirm.onConfirm}>
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
