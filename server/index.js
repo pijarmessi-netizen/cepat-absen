@@ -178,6 +178,10 @@ app.get('/api/attendances/report', async (req, res) => {
 
 // DIAGNOSTIC ENDPOINT FOR VERCEL KV
 app.get('/api/test-db', async (req, res) => {
+  const envKeys = Object.keys(process.env).filter(k => 
+    k.includes('REDIS') || k.includes('KV') || k.includes('UPSTASH') || k.includes('URL') || k.includes('TOKEN')
+  );
+
   let kvUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
   let kvToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
 
@@ -202,9 +206,9 @@ app.get('/api/test-db', async (req, res) => {
   if (!kvUrl || !kvToken) {
     return res.json({
       success: false,
-      message: 'Vercel KV/Upstash environment variables (REDIS_URL, UPSTASH_REDIS_REST_URL) are not defined in this running container!',
+      message: 'Vercel KV/Upstash environment variables are not defined in this running container!',
+      availableEnvKeys: envKeys,
       isVercel: process.env.VERCEL || false,
-      hasRedisUrl: !!process.env.REDIS_URL,
       now: new Date().toISOString()
     });
   }
@@ -237,6 +241,7 @@ app.get('/api/test-db', async (req, res) => {
       success: true,
       kvUrl: kvUrl.substring(0, 20) + '...',
       parsedFromRedisUrl,
+      availableEnvKeys: envKeys,
       writeResult: writeData,
       readResult: readData,
       parsedVal: readData.result ? JSON.parse(readData.result) : null,
@@ -252,9 +257,7 @@ app.get('/api/test-db', async (req, res) => {
       attemptedUrl: kvUrl ? (kvUrl.substring(0, 30) + '...') : null,
       attemptedTokenLength: kvToken ? kvToken.length : 0,
       parsedFromRedisUrl,
-      redisUrlDefined: !!process.env.REDIS_URL,
-      upstashUrlDefined: !!process.env.UPSTASH_REDIS_REST_URL,
-      kvUrlDefined: !!process.env.KV_REST_API_URL,
+      availableEnvKeys: envKeys,
       now: new Date().toISOString()
     });
   }
