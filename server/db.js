@@ -30,51 +30,89 @@ const cleanData = {
 class LocalJSONDatabase {
   constructor() {
     this.data = cleanData;
-    this.load();
   }
 
   // Force reset data to clean state
-  resetDatabase() {
+  async resetDatabase() {
     this.data = {
       students: [...initialStudents],
       attendances: [],
       nextAttendanceId: 1
     };
-    this.save();
+    await this.save();
     console.log('Database reset: Semua data murid dan presensi telah dibersihkan.');
   }
 
-  load() {
-    try {
-      if (fs.existsSync(dbFilePath)) {
-        const fileContent = fs.readFileSync(dbFilePath, 'utf8');
-        this.data = JSON.parse(fileContent);
-      } else {
-        const localPath = path.join(__dirname, 'cepat_absen_data.json');
-        if (isVercel && fs.existsSync(localPath)) {
-          const fileContent = fs.readFileSync(localPath, 'utf8');
-          this.data = JSON.parse(fileContent);
-          this.save();
+  async load() {
+    const kvUrl = process.env.KV_REST_API_URL;
+    const kvToken = process.env.KV_REST_API_TOKEN;
+
+    if (kvUrl && kvToken) {
+      try {
+        const res = await fetch(`${kvUrl}/get/cepat_absen_db`, {
+          headers: { Authorization: `Bearer ${kvToken}` }
+        });
+        const result = await res.json();
+        if (result && result.result) {
+          this.data = JSON.parse(result.result);
         } else {
-          this.save();
+          this.data = cleanData;
+          await this.save();
         }
+      } catch (e) {
+        console.error('Error loading from Vercel KV:', e);
+        this.data = cleanData;
       }
-    } catch (e) {
-      console.error('Error loading JSON DB:', e);
-      this.resetDatabase();
+    } else {
+      // Fallback to local JSON file
+      try {
+        if (fs.existsSync(dbFilePath)) {
+          const fileContent = fs.readFileSync(dbFilePath, 'utf8');
+          this.data = JSON.parse(fileContent);
+        } else {
+          const localPath = path.join(__dirname, 'cepat_absen_data.json');
+          if (isVercel && fs.existsSync(localPath)) {
+            const fileContent = fs.readFileSync(localPath, 'utf8');
+            this.data = JSON.parse(fileContent);
+            await this.save();
+          } else {
+            await this.save();
+          }
+        }
+      } catch (e) {
+        console.error('Error loading JSON DB:', e);
+        await this.resetDatabase();
+      }
     }
   }
 
-  save() {
-    try {
-      fs.writeFileSync(dbFilePath, JSON.stringify(this.data, null, 2), 'utf8');
-    } catch (e) {
-      console.error('Error saving JSON DB:', e);
+  async save() {
+    const kvUrl = process.env.KV_REST_API_URL;
+    const kvToken = process.env.KV_REST_API_TOKEN;
+
+    if (kvUrl && kvToken) {
+      try {
+        await fetch(`${kvUrl}/set/cepat_absen_db`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${kvToken}` },
+          body: JSON.stringify(this.data)
+        });
+      } catch (e) {
+        console.error('Error saving to Vercel KV:', e);
+      }
+    } else {
+      // Fallback to local JSON file
+      try {
+        fs.writeFileSync(dbFilePath, JSON.stringify(this.data, null, 2), 'utf8');
+      } catch (e) {
+        console.error('Error saving JSON DB:', e);
+      }
     }
   }
 
   // Student Methods
-  getStudents({ class_name, search } = {}) {
+  async getStudents({ class_name, search } = {}) {
+    await this.load();
     let list = [...this.data.students];
 
     if (class_name) {
@@ -93,12 +131,14 @@ class LocalJSONDatabase {
     return list;
   }
 
-  getStudentById(student_id) {
+  async getStudentById(student_id) {
+    await this.load();
     return this.data.students.find(s => s.student_id === String(student_id).trim());
   }
 
-  addStudent(student) {
-    const existing = this.getStudentById(student.student_id);
+  async addStudent(student) {
+    await this.load();
+    const existing = this.data.students.find(s => s.student_id === String(student.student_id).trim());
     if (existing) {
       throw new Error(`ID/NISN ${student.student_id} sudah terdaftar.`);
     }
@@ -113,11 +153,12 @@ class LocalJSONDatabase {
     };
 
     this.data.students.push(newStudent);
-    this.save();
+    await this.save();
     return newStudent;
   }
 
-  updateStudent(student_id, updateData) {
+  async updateStudent(student_id, updateData) {
+    await this.load();
     const index = this.data.students.findIndex(s => s.student_id === student_id);
     if (index === -1) return null;
 
@@ -129,27 +170,29 @@ class LocalJSONDatabase {
       guardian_phone: updateData.guardian_phone !== undefined ? updateData.guardian_phone : this.data.students[index].guardian_phone
     };
 
-    this.save();
+    await this.save();
     return this.data.students[index];
   }
 
-  deleteStudent(student_id) {
+  async deleteStudent(student_id) {
+    await this.load();
     const initialLen = this.data.students.length;
     this.data.students = this.data.students.filter(s => s.student_id !== student_id);
     this.data.attendances = this.data.attendances.filter(a => a.student_id !== student_id);
 
     const changed = this.data.students.length !== initialLen;
-    if (changed) this.save();
+    if (changed) await this.save();
     return changed;
   }
 
   // Attendance Methods
-  getTodayData(todayDate) {
+  async getTodayData(todayDate) {
+    await this.load();
     const totalStudents = this.data.students.length;
     const todayAttendances = this.data.attendances
       .filter(a => a.date === todayDate)
       .map(a => {
-        const s = this.getStudentById(a.student_id) || {};
+        const s = this.data.students.find(stud => stud.student_id === String(a.student_id).trim()) || {};
         return {
           ...a,
           fullname: s.fullname || 'Murid Tidak Dikenal',
@@ -172,17 +215,18 @@ class LocalJSONDatabase {
     return { stats, attendances: todayAttendances };
   }
 
-  findAttendance(student_id, date) {
+  _findAttendance(student_id, date) {
     return this.data.attendances.find(a => a.student_id === student_id && a.date === date);
   }
 
-  recordScan(student_id, todayDate, currentTime) {
-    const student = this.getStudentById(student_id);
+  async recordScan(student_id, todayDate, currentTime) {
+    await this.load();
+    const student = this.data.students.find(s => s.student_id === String(student_id).trim());
     if (!student) {
       return { success: false, error: 'NOT_FOUND', message: `Murid dengan ID "${student_id}" tidak terdaftar.` };
     }
 
-    const existing = this.findAttendance(student_id, todayDate);
+    const existing = this._findAttendance(student_id, todayDate);
     if (existing) {
       return {
         success: false,
@@ -204,7 +248,7 @@ class LocalJSONDatabase {
     };
 
     this.data.attendances.push(newAttendance);
-    this.save();
+    await this.save();
 
     return {
       success: true,
@@ -220,15 +264,16 @@ class LocalJSONDatabase {
     };
   }
 
-  updateAttendance(id, status, notes) {
+  async updateAttendance(id, status, notes) {
+    await this.load();
     const index = this.data.attendances.findIndex(a => a.id === Number(id));
     if (index === -1) return null;
 
     this.data.attendances[index].status = status;
     if (notes !== undefined) this.data.attendances[index].notes = notes;
 
-    this.save();
-    const student = this.getStudentById(this.data.attendances[index].student_id) || {};
+    await this.save();
+    const student = this.data.students.find(s => s.student_id === String(this.data.attendances[index].student_id).trim()) || {};
     return {
       ...this.data.attendances[index],
       fullname: student.fullname,
@@ -237,10 +282,11 @@ class LocalJSONDatabase {
     };
   }
 
-  saveManualAttendance(student_id, date, status, notes, currentTime) {
-    const existing = this.findAttendance(student_id, date);
+  async saveManualAttendance(student_id, date, status, notes, currentTime) {
+    await this.load();
+    const existing = this._findAttendance(student_id, date);
     if (existing) {
-      return this.updateAttendance(existing.id, status, notes);
+      return await this.updateAttendance(existing.id, status, notes);
     }
 
     const newAtt = {
@@ -254,13 +300,14 @@ class LocalJSONDatabase {
     };
 
     this.data.attendances.push(newAtt);
-    this.save();
+    await this.save();
     return newAtt;
   }
 
-  getReport({ start_date, end_date, class_name } = {}) {
+  async getReport({ start_date, end_date, class_name } = {}) {
+    await this.load();
     let list = this.data.attendances.map(a => {
-      const s = this.getStudentById(a.student_id) || {};
+      const s = this.data.students.find(stud => stud.student_id === String(a.student_id).trim()) || {};
       return {
         ...a,
         fullname: s.fullname || 'Murid Hapus',

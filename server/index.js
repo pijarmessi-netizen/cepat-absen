@@ -39,10 +39,10 @@ const getCurrentTime = () => {
 // ==========================================
 
 // Get list of students
-app.get('/api/students', (req, res) => {
+app.get('/api/students', async (req, res) => {
   try {
     const { class_name, search } = req.query;
-    const students = db.getStudents({ class_name, search });
+    const students = await db.getStudents({ class_name, search });
     res.json({ success: true, data: students });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -50,14 +50,14 @@ app.get('/api/students', (req, res) => {
 });
 
 // Create a new student
-app.post('/api/students', (req, res) => {
+app.post('/api/students', async (req, res) => {
   try {
     const { student_id, fullname, nickname, class_name, guardian_phone } = req.body;
     if (!student_id || !fullname || !class_name) {
       return res.status(400).json({ success: false, message: 'ID Murid, Nama Lengkap, dan Kelas wajib diisi.' });
     }
 
-    const newStudent = db.addStudent({ student_id, fullname, nickname, class_name, guardian_phone });
+    const newStudent = await db.addStudent({ student_id, fullname, nickname, class_name, guardian_phone });
     res.status(201).json({ success: true, message: 'Data murid berhasil ditambahkan.', data: newStudent });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
@@ -65,10 +65,10 @@ app.post('/api/students', (req, res) => {
 });
 
 // Update student
-app.put('/api/students/:id', (req, res) => {
+app.put('/api/students/:id', async (req, res) => {
   try {
     const student_id = req.params.id;
-    const updated = db.updateStudent(student_id, req.body);
+    const updated = await db.updateStudent(student_id, req.body);
     if (!updated) {
       return res.status(404).json({ success: false, message: 'Murid tidak ditemukan.' });
     }
@@ -79,10 +79,10 @@ app.put('/api/students/:id', (req, res) => {
 });
 
 // Delete student
-app.delete('/api/students/:id', (req, res) => {
+app.delete('/api/students/:id', async (req, res) => {
   try {
     const student_id = req.params.id;
-    const deleted = db.deleteStudent(student_id);
+    const deleted = await db.deleteStudent(student_id);
     if (!deleted) {
       return res.status(404).json({ success: false, message: 'Murid tidak ditemukan.' });
     }
@@ -97,10 +97,10 @@ app.delete('/api/students/:id', (req, res) => {
 // ==========================================
 
 // Get Dashboard Live Data for Today
-app.get('/api/attendances/today', (req, res) => {
+app.get('/api/attendances/today', async (req, res) => {
   try {
     const today = getTodayDate();
-    const result = db.getTodayData(today);
+    const result = await db.getTodayData(today);
     res.json({
       success: true,
       date: today,
@@ -113,7 +113,7 @@ app.get('/api/attendances/today', (req, res) => {
 });
 
 // Scan QR Code Endpoint
-app.post('/api/attendances/scan', (req, res) => {
+app.post('/api/attendances/scan', async (req, res) => {
   try {
     const { student_id } = req.body;
     if (!student_id) {
@@ -123,7 +123,7 @@ app.post('/api/attendances/scan', (req, res) => {
     const today = getTodayDate();
     const currentTime = getCurrentTime();
 
-    const scanResult = db.recordScan(String(student_id).trim(), today, currentTime);
+    const scanResult = await db.recordScan(String(student_id).trim(), today, currentTime);
     res.json(scanResult);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -131,12 +131,12 @@ app.post('/api/attendances/scan', (req, res) => {
 });
 
 // Update attendance status
-app.put('/api/attendances/:id', (req, res) => {
+app.put('/api/attendances/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { status, notes } = req.body;
 
-    const updated = db.updateAttendance(id, status, notes);
+    const updated = await db.updateAttendance(id, status, notes);
     if (!updated) {
       return res.status(404).json({ success: false, message: 'Data presensi tidak ditemukan.' });
     }
@@ -148,7 +148,7 @@ app.put('/api/attendances/:id', (req, res) => {
 });
 
 // Manual Insert Attendance (for Izin/Sakit/Alfa entry)
-app.post('/api/attendances/manual', (req, res) => {
+app.post('/api/attendances/manual', async (req, res) => {
   try {
     const { student_id, date, status, notes } = req.body;
     if (!student_id || !status) {
@@ -158,7 +158,7 @@ app.post('/api/attendances/manual', (req, res) => {
     const attDate = date || getTodayDate();
     const timeNow = getCurrentTime();
 
-    const saved = db.saveManualAttendance(student_id, attDate, status, notes, timeNow);
+    const saved = await db.saveManualAttendance(student_id, attDate, status, notes, timeNow);
     res.json({ success: true, message: 'Presensi manual berhasil disimpan.', data: saved });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -166,10 +166,10 @@ app.post('/api/attendances/manual', (req, res) => {
 });
 
 // Report Endpoint with Date Range & Class Filter
-app.get('/api/attendances/report', (req, res) => {
+app.get('/api/attendances/report', async (req, res) => {
   try {
     const { start_date, end_date, class_name } = req.query;
-    const reportData = db.getReport({ start_date, end_date, class_name });
+    const reportData = await db.getReport({ start_date, end_date, class_name });
     res.json({ success: true, count: reportData.length, data: reportData });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
