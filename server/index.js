@@ -249,6 +249,12 @@ app.get('/api/test-db', async (req, res) => {
       success: false,
       error: err.message,
       stack: err.stack,
+      attemptedUrl: kvUrl ? (kvUrl.substring(0, 30) + '...') : null,
+      attemptedTokenLength: kvToken ? kvToken.length : 0,
+      parsedFromRedisUrl,
+      redisUrlDefined: !!process.env.REDIS_URL,
+      upstashUrlDefined: !!process.env.UPSTASH_REDIS_REST_URL,
+      kvUrlDefined: !!process.env.KV_REST_API_URL,
       now: new Date().toISOString()
     });
   }
