@@ -21,11 +21,37 @@ const initialStudents = [
   { student_id: '2026006', fullname: 'Farel Al-Ghazali', nickname: 'Farel', class_name: 'Kelas 2-B', guardian_phone: '085244556677', created_at: new Date().toISOString() }
 ];
 
-// Empty initial database state (Clean slate for real-time user input)
 const cleanData = {
   students: initialStudents,
   attendances: [],
   nextAttendanceId: 1
+};
+
+const getKVConfig = () => {
+  let kvUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  let kvToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+
+  if ((!kvUrl || !kvToken) && process.env.REDIS_URL) {
+    try {
+      const rawUrl = process.env.REDIS_URL;
+      const parts = rawUrl.split('@');
+      if (parts.length === 2) {
+        const credentials = parts[0].replace('rediss://', '').replace('redis://', '');
+        const credParts = credentials.split(':');
+        const token = credParts.length === 2 ? credParts[1] : credParts[0];
+
+        const hostAndPort = parts[1].split(':');
+        const host = hostAndPort[0];
+
+        kvUrl = `https://${host}`;
+        kvToken = token;
+      }
+    } catch (e) {
+      console.error('Error parsing REDIS_URL:', e);
+    }
+  }
+
+  return { kvUrl, kvToken };
 };
 
 class LocalJSONDatabase {
@@ -45,8 +71,7 @@ class LocalJSONDatabase {
   }
 
   async load() {
-    const kvUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-    const kvToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+    const { kvUrl, kvToken } = getKVConfig();
 
     if (kvUrl && kvToken) {
       try {
@@ -88,8 +113,7 @@ class LocalJSONDatabase {
   }
 
   async save() {
-    const kvUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-    const kvToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+    const { kvUrl, kvToken } = getKVConfig();
 
     if (kvUrl && kvToken) {
       try {
