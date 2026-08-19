@@ -10,8 +10,7 @@ export default function AttendanceReport({ students = [] }) {
     return `${year}-${month}-${day}`;
   };
 
-  const [startDate, setStartDate] = useState(getTodayStr());
-  const [endDate, setEndDate] = useState(getTodayStr());
+  const [selectedDate, setSelectedDate] = useState(getTodayStr());
   const [selectedClass, setSelectedClass] = useState('ALL');
 
   const [reportData, setReportData] = useState([]);
@@ -23,7 +22,7 @@ export default function AttendanceReport({ students = [] }) {
   const fetchReport = async () => {
     setLoading(true);
     try {
-      let query = `/api/attendances/report?start_date=${startDate}&end_date=${endDate}`;
+      let query = `/api/attendances/report?start_date=${selectedDate}&end_date=${selectedDate}`;
       if (selectedClass !== 'ALL') {
         query += `&class_name=${encodeURIComponent(selectedClass)}`;
       }
@@ -42,7 +41,7 @@ export default function AttendanceReport({ students = [] }) {
 
   useEffect(() => {
     fetchReport();
-  }, [startDate, endDate, selectedClass]);
+  }, [selectedDate, selectedClass]);
 
   // Export to CSV Function
   const exportToCSV = () => {
@@ -73,7 +72,7 @@ export default function AttendanceReport({ students = [] }) {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Laporan_Presensi_CepatAbsen_${startDate}_sd_${endDate}.csv`);
+    link.setAttribute('download', `Laporan_Presensi_CepatAbsen_${selectedDate}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -104,26 +103,15 @@ export default function AttendanceReport({ students = [] }) {
       </div>
 
       {/* FILTER BAR - COMPACT */}
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', alignItems: 'end', padding: '12px' }}>
+      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', alignItems: 'end', padding: '12px' }}>
         <div className="form-group" style={{ marginBottom: 0 }}>
-          <label className="form-label" style={{ fontSize: '0.78rem' }}>Dari Tanggal:</label>
+          <label className="form-label" style={{ fontSize: '0.78rem' }}>Pilih Tanggal:</label>
           <input
             type="date"
             className="form-input"
             style={{ padding: '8px 10px', fontSize: '0.88rem' }}
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-        </div>
-
-        <div className="form-group" style={{ marginBottom: 0 }}>
-          <label className="form-label" style={{ fontSize: '0.78rem' }}>Sampai Tanggal:</label>
-          <input
-            type="date"
-            className="form-input"
-            style={{ padding: '8px 10px', fontSize: '0.88rem' }}
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
           />
         </div>
 
@@ -191,7 +179,7 @@ export default function AttendanceReport({ students = [] }) {
               ) : reportData.length === 0 ? (
                 <tr>
                   <td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
-                    Tidak ada rekapan presensi pada rentang tanggal & kelas yang dipilih.
+                    Tidak ada rekapan presensi pada tanggal & kelas yang dipilih.
                   </td>
                 </tr>
               ) : (
