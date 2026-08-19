@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import db from './db.js';
+import Redis from 'ioredis';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -182,84 +183,60 @@ app.get('/api/test-db', async (req, res) => {
     k.includes('REDIS') || k.includes('KV') || k.includes('UPSTASH') || k.includes('URL') || k.includes('TOKEN')
   );
 
-  let kvUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-  let kvToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  const redisUrl = process.env.REDIS_URL;
 
-  let parsedFromRedisUrl = false;
-  if ((!kvUrl || !kvToken) && process.env.REDIS_URL) {
-    try {
-      const rawUrl = process.env.REDIS_URL;
-      const parts = rawUrl.split('@');
-      if (parts.length === 2) {
-        const credentials = parts[0].replace('rediss://', '').replace('redis://', '');
-        const credParts = credentials.split(':');
-        const token = credParts.length === 2 ? credParts[1] : credParts[0];
-        const hostAndPort = parts[1].split(':');
-        const host = hostAndPort[0];
-        kvUrl = `https://${host}`;
-        kvToken = token;
-        parsedFromRedisUrl = true;
-      }
-    } catch (e) {}
-  }
-
-  if (!kvUrl || !kvToken) {
+  if (!redisUrl) {
     return res.json({
       success: false,
-      message: 'Vercel KV/Upstash environment variables are not defined in this running container!',
+      message: 'REDIS_URL environment variable is not defined in this running container!',
       availableEnvKeys: envKeys,
       isVercel: process.env.VERCEL || false,
       now: new Date().toISOString()
     });
   }
 
+  let client = null;
   try {
-    // 1. Test write
-    const testKey = 'cepat_absen_test_key';
-    const testVal = { time: new Date().toISOString(), hello: 'world' };
+    client = new Redis(redisUrl, {
+      connectTimeout: 5000,
+      maxRetriesPerRequest: 1
+    });
+
+    // Test write
+    await client.set('cepat_absen_test_key', JSON.stringify({ time: new Date().toISOString(), hello: 'world' }));
     
-    const writeRes = await fetch(`${kvUrl}/set/${testKey}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${kvToken}` },
-      body: JSON.stringify(testVal)
-    });
-    const writeData = await writeRes.json();
-
-    // 2. Test read
-    const readRes = await fetch(`${kvUrl}/get/${testKey}`, {
-      headers: { Authorization: `Bearer ${kvToken}` }
-    });
-    const readData = await readRes.json();
-
-    // 3. Load actual db
-    const dbRes = await fetch(`${kvUrl}/get/cepat_absen_db`, {
-      headers: { Authorization: `Bearer ${kvToken}` }
-    });
-    const dbData = await dbRes.json();
+    // Test read
+    const readVal = await client.get('cepat_absen_test_key');
+    
+    // Read actual db
+    const dbVal = await client.get('cepat_absen_db');
 
     res.json({
       success: true,
-      kvUrl: kvUrl.substring(0, 20) + '...',
-      parsedFromRedisUrl,
+      message: 'Redis TCP connection succeeded!',
+      redisUrl: redisUrl.substring(0, 20) + '...',
       availableEnvKeys: envKeys,
-      writeResult: writeData,
-      readResult: readData,
-      parsedVal: readData.result ? JSON.parse(readData.result) : null,
-      dbRaw: dbData,
-      dbParsed: dbData.result ? JSON.parse(dbData.result) : null,
+      readResult: readVal,
+      parsedVal: readVal ? JSON.parse(readVal) : null,
+      dbRaw: dbVal,
+      dbParsed: dbVal ? JSON.parse(dbVal) : null,
       now: new Date().toISOString()
     });
   } catch (err) {
     res.status(500).json({
       success: false,
+      message: 'Redis TCP connection failed!',
       error: err.message,
       stack: err.stack,
-      attemptedUrl: kvUrl ? (kvUrl.substring(0, 30) + '...') : null,
-      attemptedTokenLength: kvToken ? kvToken.length : 0,
-      parsedFromRedisUrl,
       availableEnvKeys: envKeys,
       now: new Date().toISOString()
     });
+  } finally {
+    if (client) {
+      try {
+        client.disconnect();
+      } catch (e) {}
+    }
   }
 });
 

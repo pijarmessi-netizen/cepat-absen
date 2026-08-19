@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import os from 'os';
+import Redis from 'ioredis';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,31 +28,25 @@ const cleanData = {
   nextAttendanceId: 1
 };
 
-const getKVConfig = () => {
-  let kvUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-  let kvToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+let redisClient = null;
 
-  if ((!kvUrl || !kvToken) && process.env.REDIS_URL) {
+const getRedisClient = () => {
+  if (redisClient) return redisClient;
+  const redisUrl = process.env.REDIS_URL;
+  if (redisUrl) {
     try {
-      const rawUrl = process.env.REDIS_URL;
-      const parts = rawUrl.split('@');
-      if (parts.length === 2) {
-        const credentials = parts[0].replace('rediss://', '').replace('redis://', '');
-        const credParts = credentials.split(':');
-        const token = credParts.length === 2 ? credParts[1] : credParts[0];
-
-        const hostAndPort = parts[1].split(':');
-        const host = hostAndPort[0];
-
-        kvUrl = `https://${host}`;
-        kvToken = token;
-      }
+      redisClient = new Redis(redisUrl, {
+        connectTimeout: 10000,
+        maxRetriesPerRequest: 1
+      });
+      redisClient.on('error', (err) => {
+        console.error('Redis connection error:', err);
+      });
     } catch (e) {
-      console.error('Error parsing REDIS_URL:', e);
+      console.error('Failed to create Redis client:', e);
     }
   }
-
-  return { kvUrl, kvToken };
+  return redisClient;
 };
 
 class LocalJSONDatabase {
@@ -71,22 +66,19 @@ class LocalJSONDatabase {
   }
 
   async load() {
-    const { kvUrl, kvToken } = getKVConfig();
+    const client = getRedisClient();
 
-    if (kvUrl && kvToken) {
+    if (client) {
       try {
-        const res = await fetch(`${kvUrl}/get/cepat_absen_db`, {
-          headers: { Authorization: `Bearer ${kvToken}` }
-        });
-        const result = await res.json();
-        if (result && result.result) {
-          this.data = JSON.parse(result.result);
+        const val = await client.get('cepat_absen_db');
+        if (val) {
+          this.data = JSON.parse(val);
         } else {
           this.data = cleanData;
           await this.save();
         }
       } catch (e) {
-        console.error('Error loading from Vercel KV:', e);
+        console.error('Error loading from Redis TCP:', e);
         this.data = cleanData;
       }
     } else {
@@ -113,17 +105,13 @@ class LocalJSONDatabase {
   }
 
   async save() {
-    const { kvUrl, kvToken } = getKVConfig();
+    const client = getRedisClient();
 
-    if (kvUrl && kvToken) {
+    if (client) {
       try {
-        await fetch(`${kvUrl}/set/cepat_absen_db`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${kvToken}` },
-          body: JSON.stringify(this.data)
-        });
+        await client.set('cepat_absen_db', JSON.stringify(this.data));
       } catch (e) {
-        console.error('Error saving to Vercel KV:', e);
+        console.error('Error saving to Redis TCP:', e);
       }
     } else {
       // Fallback to local JSON file
