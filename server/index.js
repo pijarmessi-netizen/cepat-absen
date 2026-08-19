@@ -176,6 +176,64 @@ app.get('/api/attendances/report', async (req, res) => {
   }
 });
 
+// DIAGNOSTIC ENDPOINT FOR VERCEL KV
+app.get('/api/test-db', async (req, res) => {
+  const kvUrl = process.env.KV_REST_API_URL;
+  const kvToken = process.env.KV_REST_API_TOKEN;
+
+  if (!kvUrl || !kvToken) {
+    return res.json({
+      success: false,
+      message: 'Vercel KV environment variables are not defined in this running container!',
+      isVercel: process.env.VERCEL || false,
+      now: new Date().toISOString()
+    });
+  }
+
+  try {
+    // 1. Test write
+    const testKey = 'cepat_absen_test_key';
+    const testVal = { time: new Date().toISOString(), hello: 'world' };
+    
+    const writeRes = await fetch(`${kvUrl}/set/${testKey}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${kvToken}` },
+      body: JSON.stringify(testVal)
+    });
+    const writeData = await writeRes.json();
+
+    // 2. Test read
+    const readRes = await fetch(`${kvUrl}/get/${testKey}`, {
+      headers: { Authorization: `Bearer ${kvToken}` }
+    });
+    const readData = await readRes.json();
+
+    // 3. Load actual db
+    const dbRes = await fetch(`${kvUrl}/get/cepat_absen_db`, {
+      headers: { Authorization: `Bearer ${kvToken}` }
+    });
+    const dbData = await dbRes.json();
+
+    res.json({
+      success: true,
+      kvUrl: kvUrl.substring(0, 20) + '...',
+      writeResult: writeData,
+      readResult: readData,
+      parsedVal: readData.result ? JSON.parse(readData.result) : null,
+      dbRaw: dbData,
+      dbParsed: dbData.result ? JSON.parse(dbData.result) : null,
+      now: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message,
+      stack: err.stack,
+      now: new Date().toISOString()
+    });
+  }
+});
+
 // ==========================================
 // 3. SERVE FRONTEND STATIC FILES (SINGLE SERVER)
 // ==========================================
