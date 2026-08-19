@@ -11,9 +11,18 @@ const dbFilePath = isVercel
   ? path.join(os.tmpdir(), 'cepat_absen_data.json')
   : path.join(__dirname, 'cepat_absen_data.json');
 
+const initialStudents = [
+  { student_id: '2026001', fullname: 'Ananda Putra Wijaya', nickname: 'Nanda', class_name: 'Kelas TK-A', guardian_phone: '081234567890', created_at: new Date().toISOString() },
+  { student_id: '2026002', fullname: 'Bening Safira', nickname: 'Bening', class_name: 'Kelas TK-A', guardian_phone: '081298765432', created_at: new Date().toISOString() },
+  { student_id: '2026003', fullname: 'Candra Kirana', nickname: 'Candra', class_name: 'Kelas TK-B', guardian_phone: '085712345678', created_at: new Date().toISOString() },
+  { student_id: '2026004', fullname: 'Davin Arisanto', nickname: 'Davin', class_name: 'Kelas 1-A', guardian_phone: '087811223344', created_at: new Date().toISOString() },
+  { student_id: '2026005', fullname: 'Elvira Maharani', nickname: 'Vira', class_name: 'Kelas 1-A', guardian_phone: '081399887766', created_at: new Date().toISOString() },
+  { student_id: '2026006', fullname: 'Farel Al-Ghazali', nickname: 'Farel', class_name: 'Kelas 2-B', guardian_phone: '085244556677', created_at: new Date().toISOString() }
+];
+
 // Empty initial database state (Clean slate for real-time user input)
 const cleanData = {
-  students: [],
+  students: initialStudents,
   attendances: [],
   nextAttendanceId: 1
 };
@@ -27,7 +36,7 @@ class LocalJSONDatabase {
   // Force reset data to clean state
   resetDatabase() {
     this.data = {
-      students: [],
+      students: [...initialStudents],
       attendances: [],
       nextAttendanceId: 1
     };
